@@ -182,7 +182,9 @@ public class Fuyofuyo extends JFrame{
 	private static String[] load() throws IOException {
 		ArrayList<String> list=new ArrayList<String>();
 		//String[] path= {"mona.png","youmu.png","youmu1.png","sizuha.png"};//ここに書き足すと増やせる
-		InputStream is=ClassLoader.getSystemResource("path.txt").openStream();
+		URL pathtxt=ClassLoader.getSystemResource("path.txt");
+		if(pathtxt==null)return new String[0];
+		InputStream is=pathtxt.openStream();
 		InputStreamReader isr=new InputStreamReader(is,StandardCharsets.UTF_8);
 		BufferedReader br=new BufferedReader(isr);
 		try {
