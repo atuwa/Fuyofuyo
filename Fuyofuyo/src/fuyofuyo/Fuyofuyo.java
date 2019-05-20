@@ -207,14 +207,8 @@ public class Fuyofuyo extends JFrame{
 				System.err.println("1つ以上の画像ファイルをpath.txtに指定してください");
 				System.exit(0);
 			}
-			for(int i=0;i<path.length;i++)imagepath[i]=ClassLoader.getSystemResource(path[i]);
-			for(int i=0;i<args.length;i++) {
-				try{
-					imagepath[path.length+i]=new File(args[i]).toURI().toURL();
-				}catch(IOException e){
-					e.printStackTrace();
-				}
-			}
+			for(int i=0;i<args.length;i++)	imagepath[i]=new File(args[i]).toURI().toURL();
+			for(int i=0;i<path.length;i++)imagepath[args.length+i]=ClassLoader.getSystemResource(path[i]);
 		}catch(IOException e){
 			e.printStackTrace();
 			return;
