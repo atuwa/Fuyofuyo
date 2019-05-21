@@ -38,22 +38,23 @@ import javax.swing.border.LineBorder;
 
 public class Fuyofuyo extends JFrame{
 
-	private double x,y=0;
+	private static double x,y=0;
 	private int move=0;
 	private boolean jflag;
 	private double moved;
-	private double time;
-	private double scale=0.5;
-	private BufferedImage img;
+	private static double time;
+	private static double scale=0.5;
+	private static BufferedImage img;
 	private static URL[] imagepath;
-	private int fps;
-	private int imgIndex;
-	private int size;
+	private static int fps;
+	private static int imgIndex;
 	private boolean lockd;
-	public FrameRate Fps=new FrameRate();
+	public static FrameRate Fps=new FrameRate();
 	private TrayIcon trayIcon;
+	public static boolean trayModeUseable;
+	private boolean closed;
 
-	public Fuyofuyo() throws IOException{
+	public Fuyofuyo(boolean trayMode) throws IOException{
 		super("ふよふよさせるやつ");
 		Canvas sc=new Canvas();
 		setContentPane(sc);
@@ -80,14 +81,14 @@ public class Fuyofuyo extends JFrame{
 		//setBackground(new Color(0,0,0,0));
 		Fps.setFPS(fps=30);//基本30fps
 		setAlwaysOnTop(true);//デフォルト最前面固定
-		img=ImageIO.read(imagepath[0]);
 		setIconImage(img);
 		bound();
 		//ウィンドウ範囲を示す枠をつけておく
 		//this.getRootPane().setBorder(new LineBorder(Color.black, 2));
-		try{
+		if(trayMode)try{
 			tray();
 			setType(Type.UTILITY);
+			trayModeUseable=true;
 		}catch(Exception e){
 			trayIcon=null;
 			e.printStackTrace();
@@ -95,6 +96,16 @@ public class Fuyofuyo extends JFrame{
 			System.err.println("ウィンドウ動作モードで起動します");
 		}
 		setVisible(true);
+		new Thread("位置更新") {
+			@Override
+			public void run() {
+				while(!closed) {
+					move();
+					Fps.count();
+					Fps.sleep();
+				}
+			}
+		}.start();
 	}
 	private void tray()throws Exception{
 		PopupMenu popup = new PopupMenu(); //ポップアップメニューを生成
@@ -138,11 +149,18 @@ public class Fuyofuyo extends JFrame{
 				nextCharcter();
 			}
 		});
+		MenuItem item4 = new MenuItem("ウィンドウモード");
+		item4.addActionListener(new ActionListener(){
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				mode(false);
+			}
+		});
 		popup.add(item0);
 		popup.add(item1);
 		popup.add(item3);
 		popup.add(item2);
-		popup.add(item2);
+		popup.add(item4);
 		trayIcon.setImageAutoSize(true); // リサイズ
 		SystemTray.getSystemTray().add(trayIcon);
 	}
@@ -200,6 +218,7 @@ public class Fuyofuyo extends JFrame{
 		}
 		return list.toArray(new String[list.size()]);
 	}
+	//TODO 内部画像編集エディタ作る
 	public static void main(String[] args) throws IOException {
 		if(args==null)args=new String[0];
 		try{
@@ -215,19 +234,10 @@ public class Fuyofuyo extends JFrame{
 			e.printStackTrace();
 			return;
 		}
+		img=ImageIO.read(imagepath[0]);
 		//OSのウィンドウ装飾を無くして、Look&Feelの装飾にしておきます。
 		JFrame.setDefaultLookAndFeelDecorated(true);
-		Fuyofuyo y=new Fuyofuyo();
-		new Thread("位置更新") {
-			@Override
-			public void run() {
-				while(true) {
-					y.move();
-					y.Fps.count();
-					y.Fps.sleep();
-				}
-			}
-		}.start();
+		new Fuyofuyo(true);
 	}
 	public class Canvas extends JPanel {
 		@Override
@@ -266,6 +276,24 @@ public class Fuyofuyo extends JFrame{
 	public void render(Graphics g){
 		if(img!=null)g.drawImage(img,0,0,(int)(img.getWidth()*scale),(int)(img.getHeight()*scale),null);
 	}
+	public void mode(final boolean task) {
+		new Thread("モード切替") {
+			public void run() {
+				close();
+				try{
+					new Fuyofuyo(task);
+				}catch(IOException e){
+					e.printStackTrace();
+				}
+			}
+		}.start();
+	}
+	public void close(){
+		closed=true;
+		setVisible(false);
+		SystemTray.getSystemTray().remove(trayIcon);
+		this.dispose();
+	}
 	protected void bound() {
 		Rectangle b=getBounds();
 		setBounds(b.x,b.y,(int)(img.getWidth()*scale),(int)(img.getHeight()*scale));
@@ -281,8 +309,6 @@ public class Fuyofuyo extends JFrame{
 		//背景色を透明にします。
 		//ウィンドウ装飾を無くしておかないとjre1.7からはエラーが発生します。
 		setBackground(new Color(0,0,0,0));
-		size=(int) (img.getWidth()*scale*img.getHeight()*scale);
-		//System.out.println("size="+size);
 	}
 	private class Mouse extends MouseAdapter{
 		int px,py;
@@ -345,6 +371,9 @@ public class Fuyofuyo extends JFrame{
 			}else if(kc==KeyEvent.VK_SPACE){
 				moved=1;
 				jflag=true;
+			}else if(kc==KeyEvent.VK_SHIFT){
+				if(trayIcon==null&&!trayModeUseable);
+				else mode(trayIcon==null);
 			}else if(kc==KeyEvent.VK_ESCAPE) {
 				System.exit(0);
 			}else if(kc==KeyEvent.VK_ENTER) {
